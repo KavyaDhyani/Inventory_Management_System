@@ -1,0 +1,432 @@
+{
+  "info": {
+    "name": "IMS - Inventory Management System (Microservices)",
+    "_postman_id": "a4f49c2d-3d6d-4d7b-9e58-ims-collection-0001",
+    "description": "Postman collection for IMS backend with Auth, Inventory, Order services. Includes JWT login + protected endpoints + file upload + analytics.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "AUTH_BASE_URL", "value": "http://localhost:8081" },
+    { "key": "INVENTORY_BASE_URL", "value": "http://localhost:8082" },
+    { "key": "ORDER_BASE_URL", "value": "http://localhost:8083" },
+
+    { "key": "JWT_TOKEN", "value": "" },
+
+    { "key": "productId", "value": "" },
+    { "key": "warehouseId", "value": "" },
+    { "key": "purchaseOrderId", "value": "" },
+    { "key": "salesOrderId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1) Auth Service",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{AUTH_BASE_URL}}/api/auth/register",
+              "host": ["{{AUTH_BASE_URL}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Test@123\",\n  \"role\": \"ADMIN\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login (Save JWT Token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Login successful', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "// Adjust this based on your actual response field name",
+                  "let token = jsonData.token || jsonData.accessToken || jsonData.jwt;",
+                  "",
+                  "if(token){",
+                  "    pm.collectionVariables.set('JWT_TOKEN', token);",
+                  "    console.log('JWT saved:', token);",
+                  "} else {",
+                  "    console.warn('Token not found in response');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{AUTH_BASE_URL}}/api/auth/login",
+              "host": ["{{AUTH_BASE_URL}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@gmail.com\",\n  \"password\": \"Test@123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Current User (Me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{AUTH_BASE_URL}}/api/auth/me",
+              "host": ["{{AUTH_BASE_URL}}"],
+              "path": ["api", "auth", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2) Inventory Service",
+      "item": [
+        {
+          "name": "Create Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Product created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "let id = jsonData.id || jsonData.productId;",
+                  "if(id){",
+                  "    pm.collectionVariables.set('productId', id);",
+                  "    console.log('Saved productId:', id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/products",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "products"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"SKU-1001\",\n  \"name\": \"Wireless Mouse\",\n  \"description\": \"Ergonomic wireless mouse\",\n  \"category\": \"Electronics\",\n  \"unitPrice\": 599.99,\n  \"reorderLevel\": 5\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Product By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/products/{{productId}}",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "products", "{{productId}}"]
+            }
+          }
+        },
+        {
+          "name": "List Products (Pagination + Sorting + Filtering)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/products?page=0&size=10&sort=name,asc&category=Electronics",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "products"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" },
+                { "key": "sort", "value": "name,asc" },
+                { "key": "category", "value": "Electronics" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/products/{{productId}}",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "products", "{{productId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Wireless Mouse - Updated\",\n  \"description\": \"Updated description\",\n  \"category\": \"Electronics\",\n  \"unitPrice\": 649.99,\n  \"reorderLevel\": 10\n}"
+            }
+          }
+        },
+        {
+          "name": "Create Warehouse",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Warehouse created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "let id = jsonData.id || jsonData.warehouseId;",
+                  "if(id){",
+                  "    pm.collectionVariables.set('warehouseId', id);",
+                  "    console.log('Saved warehouseId:', id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/warehouses",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "warehouses"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Main Warehouse\",\n  \"location\": \"Delhi\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Inventory Stock",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/inventory?productId={{productId}}&warehouseId={{warehouseId}}",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "inventory"],
+              "query": [
+                { "key": "productId", "value": "{{productId}}" },
+                { "key": "warehouseId", "value": "{{warehouseId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Adjust Stock (Manual)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/inventory/adjust",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "inventory", "adjust"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"warehouseId\": \"{{warehouseId}}\",\n  \"quantity\": 50,\n  \"reason\": \"Initial stock\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Upload Product Image (File Upload)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/products/{{productId}}/image",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "products", "{{productId}}", "image"]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Analytics - Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/analytics/summary",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "analytics", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Analytics - Low Stock",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{INVENTORY_BASE_URL}}/api/analytics/low-stock?threshold=5",
+              "host": ["{{INVENTORY_BASE_URL}}"],
+              "path": ["api", "analytics", "low-stock"],
+              "query": [{ "key": "threshold", "value": "5" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3) Order Service",
+      "item": [
+        {
+          "name": "Create Purchase Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Purchase order created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "let id = jsonData.id || jsonData.purchaseOrderId;",
+                  "if(id){",
+                  "    pm.collectionVariables.set('purchaseOrderId', id);",
+                  "    console.log('Saved purchaseOrderId:', id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{ORDER_BASE_URL}}/api/purchase-orders",
+              "host": ["{{ORDER_BASE_URL}}"],
+              "path": ["api", "purchase-orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"supplierName\": \"ABC Suppliers\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"warehouseId\": \"{{warehouseId}}\",\n      \"quantity\": 20,\n      \"unitCost\": 450.00\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Receive Purchase Order (Triggers STOCK_IN_EVENT)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{ORDER_BASE_URL}}/api/purchase-orders/{{purchaseOrderId}}/receive",
+              "host": ["{{ORDER_BASE_URL}}"],
+              "path": ["api", "purchase-orders", "{{purchaseOrderId}}", "receive"]
+            }
+          }
+        },
+        {
+          "name": "Create Sales Order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Sales order created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "let id = jsonData.id || jsonData.salesOrderId;",
+                  "if(id){",
+                  "    pm.collectionVariables.set('salesOrderId', id);",
+                  "    console.log('Saved salesOrderId:', id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{ORDER_BASE_URL}}/api/sales-orders",
+              "host": ["{{ORDER_BASE_URL}}"],
+              "path": ["api", "sales-orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"John Doe\",\n  \"items\": [\n    {\n      \"productId\": \"{{productId}}\",\n      \"warehouseId\": \"{{warehouseId}}\",\n      \"quantity\": 5,\n      \"unitPrice\": 699.99\n    }\n  ]\n}"
+            }
+          }
+        },
+        {
+          "name": "Confirm Sales Order (Triggers STOCK_OUT_EVENT)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{JWT_TOKEN}}" }
+            ],
+            "url": {
+              "raw": "{{ORDER_BASE_URL}}/api/sales-orders/{{salesOrderId}}/confirm",
+              "host": ["{{ORDER_BASE_URL}}"],
+              "path": ["api", "sales-orders", "{{salesOrderId}}", "confirm"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
