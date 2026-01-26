@@ -24,6 +24,13 @@ spring:
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
       retries: 3
+      properties:
+        max.block.ms: 5000
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 10000
+
+kafka:
+  enabled: ${KAFKA_ENABLED:false}
 
 jwt:
   secret: ${JWT_SECRET:mySecretKeyForJWTTokenGenerationWhichIsVeryLongAndSecure2024}
@@ -38,4 +45,4 @@ springdoc:
 logging:
   level:
     com.example.order_service: DEBUG
-    org.springframework.kafka: INFO
+    org.springframework.kafka: WARN
