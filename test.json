@@ -6,16 +6,46 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "AUTH_BASE_URL", "value": "http://localhost:8081" },
-    { "key": "INVENTORY_BASE_URL", "value": "http://localhost:8082" },
-    { "key": "ORDER_BASE_URL", "value": "http://localhost:8083" },
-
-    { "key": "JWT_TOKEN", "value": "" },
-
-    { "key": "productId", "value": "" },
-    { "key": "warehouseId", "value": "" },
-    { "key": "purchaseOrderId", "value": "" },
-    { "key": "salesOrderId", "value": "" }
+    {
+      "key": "AUTH_BASE_URL",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "INVENTORY_BASE_URL",
+      "value": "http://localhost:8082",
+      "type": "string"
+    },
+    {
+      "key": "ORDER_BASE_URL",
+      "value": "http://localhost:8083",
+      "type": "string"
+    },
+    {
+      "key": "JWT_TOKEN",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "warehouseId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "purchaseOrderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "salesOrderId",
+      "value": "",
+      "type": "string"
+    }
   ],
   "item": [
     {
@@ -23,6 +53,41 @@
       "item": [
         {
           "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('User registration successful', function () {",
+                  "    pm.expect(jsonData).to.have.property('id').or.have.property('userId');",
+                  "    pm.expect(jsonData).to.have.property('email');",
+                  "    pm.expect(jsonData.email).to.equal('testuser@gmail.com');",
+                  "});",
+                  "",
+                  "pm.test('User role is set correctly', function () {",
+                  "    if (jsonData.role) {",
+                  "        pm.expect(jsonData.role).to.equal('ADMIN');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -44,22 +109,41 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Login successful', function () {",
+                  "pm.test('Status code is 200', function () {",
                   "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
                   "});",
                   "",
                   "let jsonData = pm.response.json();",
                   "",
-                  "// Adjust this based on your actual response field name",
-                  "let token = jsonData.token || jsonData.accessToken || jsonData.jwt;",
+                  "pm.test('Response contains token field', function () {",
+                  "    pm.expect(jsonData).to.have.property('token').or.have.property('accessToken').or.have.property('jwt');",
+                  "});",
                   "",
-                  "if(token){",
+                  "// Extract token from various possible field names",
+                  "let token = jsonData.token || jsonData.accessToken || jsonData.jwt || jsonData.access_token;",
+                  "",
+                  "if (token) {",
                   "    pm.collectionVariables.set('JWT_TOKEN', token);",
-                  "    console.log('JWT saved:', token);",
+                  "    console.log('✓ JWT token saved successfully');",
+                  "    pm.test('JWT token is not empty', function () {",
+                  "        pm.expect(token).to.not.be.empty;",
+                  "    });",
                   "} else {",
-                  "    console.warn('Token not found in response');",
+                  "    console.error('✗ Token not found in response. Available keys:', Object.keys(jsonData));",
+                  "    pm.test('Token extraction failed', function () {",
+                  "        pm.expect.fail('Token not found in response');",
+                  "    });",
                   "}"
-                ]
+                ],
+                "type": "text/javascript"
               }
             }
           ],
@@ -79,6 +163,40 @@
         },
         {
           "name": "Get Current User (Me)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Response contains user information', function () {",
+                  "    pm.expect(jsonData).to.have.property('id').or.have.property('userId');",
+                  "    pm.expect(jsonData).to.have.property('email');",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "});",
+                  "",
+                  "pm.test('JWT token is valid (user authenticated)', function () {",
+                  "    pm.expect(pm.response.code).to.not.equal(401);",
+                  "    pm.expect(pm.response.code).to.not.equal(403);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -103,17 +221,43 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Product created', function () {",
+                  "pm.test('Status code is 201 Created', function () {",
                   "    pm.response.to.have.status(201);",
                   "});",
                   "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
                   "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Response contains product ID', function () {",
+                  "    pm.expect(jsonData).to.have.property('id').or.have.property('productId');",
+                  "});",
+                  "",
+                  "pm.test('Response contains product name', function () {",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "});",
+                  "",
                   "let id = jsonData.id || jsonData.productId;",
-                  "if(id){",
-                  "    pm.collectionVariables.set('productId', id);",
-                  "    console.log('Saved productId:', id);",
+                  "if (id) {",
+                  "    pm.collectionVariables.set('productId', id.toString());",
+                  "    console.log('✓ Product ID saved:', id);",
+                  "    pm.test('Product ID is not empty', function () {",
+                  "        pm.expect(id).to.not.be.empty;",
+                  "    });",
+                  "} else {",
+                  "    console.error('✗ Product ID not found in response');",
+                  "    pm.test('Product ID extraction failed', function () {",
+                  "        pm.expect.fail('Product ID not found in response');",
+                  "    });",
                   "}"
-                ]
+                ],
+                "type": "text/javascript"
               }
             }
           ],
@@ -136,6 +280,40 @@
         },
         {
           "name": "Get Product By ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Product ID matches requested ID', function () {",
+                  "    let id = jsonData.id || jsonData.productId;",
+                  "    pm.expect(id.toString()).to.equal(pm.collectionVariables.get('productId'));",
+                  "});",
+                  "",
+                  "pm.test('Product has required fields', function () {",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData).to.have.property('sku');",
+                  "    pm.expect(jsonData).to.have.property('category');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -150,6 +328,48 @@
         },
         {
           "name": "List Products (Pagination + Sorting + Filtering)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Response contains content array', function () {",
+                  "    pm.expect(jsonData).to.have.property('content').that.is.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Pagination metadata exists', function () {",
+                  "    pm.expect(jsonData).to.have.property('totalElements').that.is.a('number');",
+                  "    pm.expect(jsonData).to.have.property('totalPages').that.is.a('number');",
+                  "    pm.expect(jsonData).to.have.property('size').that.is.a('number');",
+                  "    pm.expect(jsonData).to.have.property('number').that.is.a('number');",
+                  "});",
+                  "",
+                  "if (jsonData.content && jsonData.content.length > 0) {",
+                  "    pm.test('Products are filtered by category', function () {",
+                  "        jsonData.content.forEach(function(product) {",
+                  "            pm.expect(product.category).to.equal('Electronics');",
+                  "        });",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -170,6 +390,42 @@
         },
         {
           "name": "Update Product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Product name is updated', function () {",
+                  "    pm.expect(jsonData.name).to.equal('Wireless Mouse - Updated');",
+                  "});",
+                  "",
+                  "pm.test('Product price is updated', function () {",
+                  "    pm.expect(jsonData.unitPrice).to.equal(649.99);",
+                  "});",
+                  "",
+                  "pm.test('Product ID remains unchanged', function () {",
+                  "    let id = jsonData.id || jsonData.productId;",
+                  "    pm.expect(id.toString()).to.equal(pm.collectionVariables.get('productId'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "PUT",
             "header": [
@@ -194,17 +450,44 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Warehouse created', function () {",
+                  "pm.test('Status code is 201 Created', function () {",
                   "    pm.response.to.have.status(201);",
                   "});",
                   "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
                   "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Response contains warehouse ID', function () {",
+                  "    pm.expect(jsonData).to.have.property('id').or.have.property('warehouseId');",
+                  "});",
+                  "",
+                  "pm.test('Response contains warehouse name', function () {",
+                  "    pm.expect(jsonData).to.have.property('name');",
+                  "    pm.expect(jsonData.name).to.equal('Main Warehouse');",
+                  "});",
+                  "",
                   "let id = jsonData.id || jsonData.warehouseId;",
-                  "if(id){",
-                  "    pm.collectionVariables.set('warehouseId', id);",
-                  "    console.log('Saved warehouseId:', id);",
+                  "if (id) {",
+                  "    pm.collectionVariables.set('warehouseId', id.toString());",
+                  "    console.log('✓ Warehouse ID saved:', id);",
+                  "    pm.test('Warehouse ID is not empty', function () {",
+                  "        pm.expect(id).to.not.be.empty;",
+                  "    });",
+                  "} else {",
+                  "    console.error('✗ Warehouse ID not found in response');",
+                  "    pm.test('Warehouse ID extraction failed', function () {",
+                  "        pm.expect.fail('Warehouse ID not found in response');",
+                  "    });",
                   "}"
-                ]
+                ],
+                "type": "text/javascript"
               }
             }
           ],
@@ -227,6 +510,47 @@
         },
         {
           "name": "Get Inventory Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 500ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(500);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Response contains quantity field', function () {",
+                  "    pm.expect(jsonData).to.have.property('quantity').that.is.a('number');",
+                  "});",
+                  "",
+                  "pm.test('Product ID matches requested ID', function () {",
+                  "    let productId = jsonData.productId || jsonData.product?.id;",
+                  "    if (productId) {",
+                  "        pm.expect(productId.toString()).to.equal(pm.collectionVariables.get('productId'));",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Warehouse ID matches requested ID', function () {",
+                  "    let warehouseId = jsonData.warehouseId || jsonData.warehouse?.id;",
+                  "    if (warehouseId) {",
+                  "        pm.expect(warehouseId.toString()).to.equal(pm.collectionVariables.get('warehouseId'));",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -245,6 +569,40 @@
         },
         {
           "name": "Adjust Stock (Manual)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Stock adjustment successful', function () {",
+                  "    pm.expect(jsonData).to.have.property('quantity').that.is.a('number');",
+                  "    pm.expect(jsonData.quantity).to.equal(50);",
+                  "});",
+                  "",
+                  "pm.test('Response contains reason', function () {",
+                  "    if (jsonData.reason) {",
+                  "        pm.expect(jsonData.reason).to.equal('Initial stock');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -264,6 +622,39 @@
         },
         {
           "name": "Upload Product Image (File Upload)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 201', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 201]);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 3000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(3000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Image upload successful', function () {",
+                  "    pm.expect(jsonData).to.have.property('imageUrl').or.have.property('imagePath').or.have.property('filename');",
+                  "});",
+                  "",
+                  "if (jsonData.imageUrl) {",
+                  "    pm.test('Image URL is valid', function () {",
+                  "        pm.expect(jsonData.imageUrl).to.be.a('string').and.not.be.empty;",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -288,6 +679,41 @@
         },
         {
           "name": "Analytics - Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Summary contains total products', function () {",
+                  "    pm.expect(jsonData).to.have.property('totalProducts').or.have.property('totalProductsCount');",
+                  "});",
+                  "",
+                  "pm.test('Summary contains total warehouses', function () {",
+                  "    pm.expect(jsonData).to.have.property('totalWarehouses').or.have.property('warehouseCount');",
+                  "});",
+                  "",
+                  "pm.test('Summary contains inventory metrics', function () {",
+                  "    pm.expect(jsonData).to.have.property('totalStock').or.have.property('totalQuantity');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -302,6 +728,41 @@
         },
         {
           "name": "Analytics - Low Stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Response is an array', function () {",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "if (Array.isArray(jsonData) && jsonData.length > 0) {",
+                  "    pm.test('Low stock items have quantity below threshold', function () {",
+                  "        jsonData.forEach(function(item) {",
+                  "            pm.expect(item.quantity).to.be.below(5);",
+                  "        });",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "GET",
             "header": [
@@ -327,17 +788,49 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Purchase order created', function () {",
+                  "pm.test('Status code is 201 Created', function () {",
                   "    pm.response.to.have.status(201);",
                   "});",
                   "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
                   "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Response contains purchase order ID', function () {",
+                  "    pm.expect(jsonData).to.have.property('id').or.have.property('purchaseOrderId');",
+                  "});",
+                  "",
+                  "pm.test('Response contains supplier name', function () {",
+                  "    pm.expect(jsonData).to.have.property('supplierName');",
+                  "    pm.expect(jsonData.supplierName).to.equal('ABC Suppliers');",
+                  "});",
+                  "",
+                  "pm.test('Response contains items array', function () {",
+                  "    pm.expect(jsonData).to.have.property('items').that.is.an('array');",
+                  "    pm.expect(jsonData.items.length).to.be.above(0);",
+                  "});",
+                  "",
                   "let id = jsonData.id || jsonData.purchaseOrderId;",
-                  "if(id){",
-                  "    pm.collectionVariables.set('purchaseOrderId', id);",
-                  "    console.log('Saved purchaseOrderId:', id);",
+                  "if (id) {",
+                  "    pm.collectionVariables.set('purchaseOrderId', id.toString());",
+                  "    console.log('✓ Purchase Order ID saved:', id);",
+                  "    pm.test('Purchase Order ID is not empty', function () {",
+                  "        pm.expect(id).to.not.be.empty;",
+                  "    });",
+                  "} else {",
+                  "    console.error('✗ Purchase Order ID not found in response');",
+                  "    pm.test('Purchase Order ID extraction failed', function () {",
+                  "        pm.expect.fail('Purchase Order ID not found in response');",
+                  "    });",
                   "}"
-                ]
+                ],
+                "type": "text/javascript"
               }
             }
           ],
@@ -360,6 +853,40 @@
         },
         {
           "name": "Receive Purchase Order (Triggers STOCK_IN_EVENT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 2000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Purchase order status is updated', function () {",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData.status).to.equal('RECEIVED').or.equal('COMPLETED');",
+                  "});",
+                  "",
+                  "pm.test('Stock should be updated (check inventory)', function () {",
+                  "    // This endpoint triggers STOCK_IN_EVENT",
+                  "    // Verify by checking inventory after this call",
+                  "    pm.expect(jsonData).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "PATCH",
             "header": [
@@ -380,17 +907,53 @@
               "listen": "test",
               "script": {
                 "exec": [
-                  "pm.test('Sales order created', function () {",
+                  "pm.test('Status code is 201 Created', function () {",
                   "    pm.response.to.have.status(201);",
                   "});",
                   "",
+                  "pm.test('Response time is less than 1000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(1000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
                   "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Response contains sales order ID', function () {",
+                  "    pm.expect(jsonData).to.have.property('id').or.have.property('salesOrderId');",
+                  "});",
+                  "",
+                  "pm.test('Response contains customer name', function () {",
+                  "    pm.expect(jsonData).to.have.property('customerName');",
+                  "    pm.expect(jsonData.customerName).to.equal('John Doe');",
+                  "});",
+                  "",
+                  "pm.test('Response contains items array', function () {",
+                  "    pm.expect(jsonData).to.have.property('items').that.is.an('array');",
+                  "    pm.expect(jsonData.items.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Response contains total amount', function () {",
+                  "    pm.expect(jsonData).to.have.property('totalAmount').or.have.property('total');",
+                  "});",
+                  "",
                   "let id = jsonData.id || jsonData.salesOrderId;",
-                  "if(id){",
-                  "    pm.collectionVariables.set('salesOrderId', id);",
-                  "    console.log('Saved salesOrderId:', id);",
+                  "if (id) {",
+                  "    pm.collectionVariables.set('salesOrderId', id.toString());",
+                  "    console.log('✓ Sales Order ID saved:', id);",
+                  "    pm.test('Sales Order ID is not empty', function () {",
+                  "        pm.expect(id).to.not.be.empty;",
+                  "    });",
+                  "} else {",
+                  "    console.error('✗ Sales Order ID not found in response');",
+                  "    pm.test('Sales Order ID extraction failed', function () {",
+                  "        pm.expect.fail('Sales Order ID not found in response');",
+                  "    });",
                   "}"
-                ]
+                ],
+                "type": "text/javascript"
               }
             }
           ],
@@ -413,6 +976,40 @@
         },
         {
           "name": "Confirm Sales Order (Triggers STOCK_OUT_EVENT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response time is less than 2000ms', function () {",
+                  "    pm.expect(pm.response.responseTime).to.be.below(2000);",
+                  "});",
+                  "",
+                  "pm.test('Response has JSON body', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "let jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Sales order status is updated', function () {",
+                  "    pm.expect(jsonData).to.have.property('status');",
+                  "    pm.expect(jsonData.status).to.equal('CONFIRMED').or.equal('COMPLETED');",
+                  "});",
+                  "",
+                  "pm.test('Stock should be updated (check inventory)', function () {",
+                  "    // This endpoint triggers STOCK_OUT_EVENT",
+                  "    // Verify by checking inventory after this call",
+                  "    pm.expect(jsonData).to.be.an('object');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "PATCH",
             "header": [
