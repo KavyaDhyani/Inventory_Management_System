@@ -45,6 +45,7 @@ public class ProductService {
         return ProductResponseDTO.fromEntity(product);
     }
 
+    @Transactional(readOnly = true)
     @Cacheable(value = "products", key = "#id")
     public ProductResponseDTO getProductById(UUID id) {
         Product product = productRepository.findById(id)
@@ -52,11 +53,13 @@ public class ProductService {
         return ProductResponseDTO.fromEntity(product);
     }
 
+    @Transactional(readOnly = true)
     public Product getProductEntityById(UUID id) {
         return productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found with id: " + id));
     }
 
+    @Transactional(readOnly = true)
     public Page<ProductResponseDTO> getAllProducts(
             String category,
             BigDecimal minPrice,
