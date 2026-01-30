@@ -19,12 +19,19 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     boolean existsBySku(String sku);
 
-    @Query("SELECT p FROM Product p WHERE " +
-           "(:category IS NULL OR p.category = :category) AND " +
-           "(:minPrice IS NULL OR p.unitPrice >= :minPrice) AND " +
-           "(:maxPrice IS NULL OR p.unitPrice <= :maxPrice) AND " +
-           "(:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
-           "LOWER(p.sku) LIKE LOWER(CONCAT('%', :search, '%')))")
+    @Query(value = "SELECT * FROM products p WHERE " +
+           "(CAST(:category AS VARCHAR) IS NULL OR p.category = :category) AND " +
+           "(CAST(:minPrice AS NUMERIC) IS NULL OR p.unit_price >= :minPrice) AND " +
+           "(CAST(:maxPrice AS NUMERIC) IS NULL OR p.unit_price <= :maxPrice) AND " +
+           "(CAST(:search AS VARCHAR) IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(p.sku) LIKE LOWER(CONCAT('%', :search, '%')))",
+           countQuery = "SELECT COUNT(*) FROM products p WHERE " +
+           "(CAST(:category AS VARCHAR) IS NULL OR p.category = :category) AND " +
+           "(CAST(:minPrice AS NUMERIC) IS NULL OR p.unit_price >= :minPrice) AND " +
+           "(CAST(:maxPrice AS NUMERIC) IS NULL OR p.unit_price <= :maxPrice) AND " +
+           "(CAST(:search AS VARCHAR) IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           "LOWER(p.sku) LIKE LOWER(CONCAT('%', :search, '%')))",
+           nativeQuery = true)
     Page<Product> findByFilters(
             @Param("category") String category,
             @Param("minPrice") BigDecimal minPrice,
