@@ -68,7 +68,7 @@ The system follows a **microservices architecture** with three main services:
 1. **Auth Service** (`auth-service`)
    - User registration and authentication
    - JWT token generation and validation
-   - Role management (ADMIN, MANAGER, USER)
+   - Role management (ADMIN, MANAGER, STAFF)
 
 2. **Inventory Service** (`inventory-service`)
    - Product CRUD operations
@@ -417,17 +417,94 @@ jwt:
 
 5. **File Upload**: Ensure the upload directory exists and has write permissions.
 
+6. **Kafka Toggle**: Kafka is optional. Set `KAFKA_ENABLED=false` (default) to run without Kafka. When disabled, order operations (receive/confirm) still work but stock updates won't propagate automatically to the inventory service.
+
+### Kafka Event Flow
+
+When Kafka is enabled (`KAFKA_ENABLED=true`), the order service publishes stock events that the inventory service consumes:
+
+```
+Order Service (Producer)                    Inventory Service (Consumer)
+┌─────────────────────┐                     ┌─────────────────────┐
+│ Receive Purchase     │──stock.in.events──►│ Increase stock      │
+│ Order (PATCH)        │                     │ quantity             │
+├─────────────────────┤                     ├─────────────────────┤
+│ Confirm Sales        │──stock.out.events─►│ Decrease stock      │
+│ Order (PATCH)        │                     │ quantity             │
+└─────────────────────┘                     ├─────────────────────┤
+                                             │ If stock < reorder  │
+                                             │ level → sends email │
+                                             │ via low.stock.alerts│
+                                             └─────────────────────┘
+```
+
+**Kafka Topics:**
+
+| Topic | Producer | Consumer | Purpose |
+|-------|----------|----------|---------|
+| `stock.in.events` | Order Service | Inventory Service | Stock increase on purchase order receive |
+| `stock.out.events` | Order Service | Inventory Service | Stock decrease on sales order confirm |
+| `low.stock.alerts` | Inventory Service | Inventory Service | Triggers email alerts for low stock |
+
+### Email Notifications (SMTP)
+
+The inventory service sends automated email alerts when stock falls below the product's reorder level. Configure SMTP in `inventory-service/application.yaml`:
+
+```yaml
+spring:
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:your-email@gmail.com}
+    password: ${MAIL_PASSWORD:your-app-password}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+```
+
+> For Gmail, you need to use an [App Password](https://support.google.com/accounts/answer/185833) (not your regular password). Enable 2FA first, then generate an App Password.
+
+### Caching
+
+The inventory service uses **Caffeine** in-memory cache for frequently accessed data:
+
+- **Products** - cached on read, evicted on update/delete
+- **Warehouses** - cached on read
+- **Analytics summaries** - cached with TTL
+
+Cache is configured in `CacheConfig.java` with `@EnableCaching`.
+
+### Rate Limiting
+
+API rate limiting is implemented using **Bucket4j** to prevent abuse. When the rate limit is exceeded, the API returns `429 Too Many Requests`.
+
 ---
 
 ## 📚 API Documentation
 
-### Swagger UI
+### Swagger UI (Interactive API Docs)
 
 Once services are running, access interactive API documentation:
 
-- **Auth Service**: `http://localhost:8081/swagger-ui.html`
-- **Inventory Service**: `http://localhost:8082/swagger-ui.html`
-- **Order Service**: `http://localhost:8083/swagger-ui.html`
+| Service | Swagger UI | OpenAPI JSON |
+|---------|-----------|-------------|
+| Auth Service | [http://localhost:8081/swagger-ui.html](http://localhost:8081/swagger-ui.html) | [http://localhost:8081/v3/api-docs](http://localhost:8081/v3/api-docs) |
+| Inventory Service | [http://localhost:8082/swagger-ui.html](http://localhost:8082/swagger-ui.html) | [http://localhost:8082/v3/api-docs](http://localhost:8082/v3/api-docs) |
+| Order Service | [http://localhost:8083/swagger-ui.html](http://localhost:8083/swagger-ui.html) | [http://localhost:8083/v3/api-docs](http://localhost:8083/v3/api-docs) |
+
+> Swagger UI endpoints are publicly accessible (no JWT required to view docs).
+
+### Role-Based Access Control (RBAC)
+
+The system has three roles with different permission levels:
+
+| Role | Description | Permissions |
+|------|------------|-------------|
+| `ADMIN` | Full system access | All operations including delete, analytics, user management |
+| `MANAGER` | Operational access | Create/update products, manage warehouses, create/manage orders, view analytics |
+| `STAFF` | Basic access | View products, create sales orders, view inventory |
+
+> When registering, pass `"role": "ADMIN"` / `"MANAGER"` / `"STAFF"` in the request body. Defaults to `STAFF` if omitted.
 
 ### API Endpoints Overview
 
@@ -439,39 +516,60 @@ Once services are running, access interactive API documentation:
 #### Inventory Service (`/api`)
 - **Products**: `/api/products`
   - `GET /api/products` - List products (paginated, filtered, sorted)
-  - `POST /api/products` - Create product
+  - `POST /api/products` - Create product *(ADMIN, MANAGER)*
   - `GET /api/products/{id}` - Get product by ID
-  - `PUT /api/products/{id}` - Update product
-  - `DELETE /api/products/{id}` - Delete product
-  - `POST /api/products/{id}/image` - Upload product image
+  - `PUT /api/products/{id}` - Update product *(ADMIN, MANAGER)*
+  - `DELETE /api/products/{id}` - Delete product *(ADMIN)*
+  - `POST /api/products/{id}/image` - Upload product image *(ADMIN, MANAGER)*
+  - `GET /api/products/{productId}/images/{imageId}` - Get product image
+  - `DELETE /api/products/{productId}/images/{imageId}` - Delete product image *(ADMIN, MANAGER)*
 
 - **Warehouses**: `/api/warehouses`
-  - `GET /api/warehouses` - List warehouses
-  - `POST /api/warehouses` - Create warehouse
+  - `GET /api/warehouses` - List all warehouses
+  - `POST /api/warehouses` - Create warehouse *(ADMIN, MANAGER)*
   - `GET /api/warehouses/{id}` - Get warehouse by ID
 
 - **Inventory**: `/api/inventory`
-  - `GET /api/inventory` - Get all inventory (paginated)
-  - `POST /api/inventory/adjust` - Adjust stock manually
-  - `POST /api/inventory/transfer` - Transfer stock between warehouses
-  - `GET /api/inventory/movements` - Get stock movement history
+  - `GET /api/inventory` - Get all inventory stock (paginated)
+  - `POST /api/inventory/adjust` - Adjust stock quantity *(ADMIN, MANAGER)*
+  - `POST /api/inventory/transfer` - Transfer stock between warehouses *(ADMIN, MANAGER)*
+  - `GET /api/inventory/movements` - Get stock movement history (filter by `productId`, `warehouseId`)
 
-- **Analytics**: `/api/analytics`
-  - `GET /api/analytics/summary` - Get dashboard summary
-  - `GET /api/analytics/low-stock` - Get low stock items
+- **Analytics**: `/api/analytics` *(ADMIN, MANAGER)*
+  - `GET /api/analytics/summary` - Get dashboard summary (total products, warehouses, stock value)
+  - `GET /api/analytics/low-stock` - Get low stock items (optional `?threshold=N`)
+  - `GET /api/analytics/top-moved` - Get top moved products (optional `?limit=N`, default 5)
+  - `GET /api/analytics/daily-stock-flow` - Get daily stock flow (optional `?days=N`, default 7)
 
 #### Order Service (`/api`)
-- **Purchase Orders**: `/api/purchase-orders`
-  - `GET /api/purchase-orders` - List purchase orders
+- **Purchase Orders**: `/api/purchase-orders` *(ADMIN, MANAGER)*
+  - `GET /api/purchase-orders` - List purchase orders (paginated)
   - `POST /api/purchase-orders` - Create purchase order
   - `GET /api/purchase-orders/{id}` - Get purchase order by ID
-  - `PATCH /api/purchase-orders/{id}/receive` - Receive purchase order (triggers stock IN)
+  - `PATCH /api/purchase-orders/{id}/receive` - Receive purchase order (triggers stock IN via Kafka)
 
 - **Sales Orders**: `/api/sales-orders`
-  - `GET /api/sales-orders` - List sales orders
-  - `POST /api/sales-orders` - Create sales order
-  - `GET /api/sales-orders/{id}` - Get sales order by ID
-  - `PATCH /api/sales-orders/{id}/confirm` - Confirm sales order (triggers stock OUT)
+  - `GET /api/sales-orders` - List sales orders (paginated) *(ADMIN, MANAGER)*
+  - `POST /api/sales-orders` - Create sales order *(ADMIN, MANAGER, STAFF)*
+  - `GET /api/sales-orders/{id}` - Get sales order by ID *(ADMIN, MANAGER, STAFF)*
+  - `PATCH /api/sales-orders/{id}/confirm` - Confirm sales order (triggers stock OUT via Kafka) *(ADMIN, MANAGER)*
+  - `PATCH /api/sales-orders/{id}/cancel` - Cancel sales order *(ADMIN, MANAGER)*
+
+### Product List Query Parameters
+
+The `GET /api/products` endpoint supports the following query parameters:
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `page` | int | Page number (0-indexed) | `?page=0` |
+| `size` | int | Page size (default: 10) | `?size=20` |
+| `sort` | string | Sort field and direction | `?sort=name,asc` |
+| `category` | string | Filter by category | `?category=Electronics` |
+| `minPrice` | decimal | Minimum price filter | `?minPrice=100` |
+| `maxPrice` | decimal | Maximum price filter | `?maxPrice=1000` |
+| `search` | string | Search by product name or SKU | `?search=wireless` |
+
+Example: `GET /api/products?category=Electronics&minPrice=100&maxPrice=1000&search=mouse&page=0&size=10&sort=name,asc`
 
 ### Authentication
 
